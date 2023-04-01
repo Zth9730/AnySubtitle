@@ -4,10 +4,9 @@ setup(
     name="any_subtitle",
     packages=find_packages(),
     py_modules=["any_subtitle"],
-    author="Miguel Piedrafita",
+    author="TianhaoZhang",
     install_requires=[
         'openai-whisper',
-        'git+https://github.com/huggingface/transformers.git',
     ],
     description="Make your videos accessible to a wider audience by adding subtitles in your target language, with support for any language vedio.",
     entry_points={
