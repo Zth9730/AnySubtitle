@@ -34,7 +34,7 @@ The following command will generate a `subtitled/video.mp4` file contained the i
 
 The default whisper model setting (which selects the `small` model) works well for transcribing English. You can optionally use a bigger model for better results (especially with other languages). The available models are `tiny`, `tiny.en`, `base`, `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`.
 
-    any-subtitle /path/to/video.mp4 --whisper_model medium
+    any-subtitle /path/to/video.mp4 --whis_model medium
 
 
 
