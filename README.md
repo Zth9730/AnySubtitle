@@ -38,7 +38,7 @@ The default whisper model setting (which selects the `small` model) works well f
 
 
 
-Adding `-t True` to use nllb model to translate the subtitles, you can specific the nllb model with `--nllb_model` and set the target translation language with `-l zho_Hans`, or the language codes can be found in [here](src\const.py).
+Adding `-t True` to use nllb model to translate the subtitles, you can specific the nllb model with `--nllb_model` and set the target translation language with `-l zho_Hans`, or the language codes can be found in [here](https://github.com/Zth9730/AnySubtitle/blob/main/src/const.py).
 
     any-subtitle /path/to/video.mp4 --whisper_model medium -t True --nllb_model small -l zho_Hans
 
