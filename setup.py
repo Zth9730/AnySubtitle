@@ -10,7 +10,7 @@ setup(
     ],
     description="Make your videos accessible to a wider audience by adding subtitles in your target language, with support for any language vedio.",
     entry_points={
-        'console_scripts': ['any_subtitle=src.cli:main'],
+        'console_scripts': ['any-subtitle=src.cli:main'],
     },
     include_package_data=True,
 )

@@ -4,9 +4,9 @@ import whisper
 import argparse
 import warnings
 import tempfile
-from utils import filename, str2bool, write_srt
+from .utils import filename, str2bool, write_srt
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from lang import LANGUAGES, FAIRSEQ_LANGUAGE_CODES
+from .const import LANGUAGES, FAIRSEQ_LANGUAGE_CODES, NLLB_MODEL
 
 def main():
     parser = argparse.ArgumentParser(
@@ -15,8 +15,12 @@ def main():
                         help="paths to video files to transcribe")
     parser.add_argument("--whis_model", default="small",
                         choices=whisper.available_models(), help="name of the Whisper model to use")
-    parser.add_argument("--nllb_model", default='facebook/nllb-200-distilled-600M')
-    parser.add_argument("--target_language", choices=FAIRSEQ_LANGUAGE_CODES, default='eng_Latn')
+    parser.add_argument("--nllb_translate", "-t", type=bool, default=False,
+                        help="whether to translate the transcript")
+    parser.add_argument("--nllb_model", default='small', choices=NLLB_MODEL.keys(),
+                        help="name of the NLLB model to use")
+    parser.add_argument("--target_language", "-l", choices=FAIRSEQ_LANGUAGE_CODES, default='zho_Hans', 
+                        help="target language to translate")
     parser.add_argument("--output_dir", "-o", type=str,
                         default=".", help="directory to save the outputs")
     parser.add_argument("--output_srt", type=str2bool, default=False,
@@ -31,7 +35,9 @@ def main():
 
     args = parser.parse_args().__dict__
     whisper_model_name: str = args.pop("whis_model")
-    nllb_model_name: str = args.pop("nllb_model")
+    nllb_translate: bool = args.pop("nllb_translate")
+    nllb_model_name: str = NLLB_MODEL[args.pop("nllb_model")]
+    target_language: str = args.pop("target_language")
     output_dir: str = args.pop("output_dir")
     output_srt: bool = args.pop("output_srt")
     srt_only: bool = args.pop("srt_only")
@@ -39,20 +45,15 @@ def main():
 
     if whisper_model_name.endswith(".en"):
         warnings.warn(
-            f"{model_name} is an English-only model, forcing English detection.")
+            f"{whisper_model_name} is an English-only model, forcing English detection.")
         args["language"] = "en"
-
-    whisper_model = whisper.load_model(whisper_model_name)
-
-    nllb_tokenizer = AutoTokenizer.from_pretrained(nllb_model_name)
-    nllb_model = AutoModelForSeq2SeqLM.from_pretrained(nllb_model_name)
     
     audios = get_audio(args.pop("video"))
+    whisper_model = whisper.load_model(whisper_model_name)
+
     subtitles = get_subtitles(
-        audios, output_srt or srt_only, output_dir, 
+        audios, output_srt or srt_only, output_dir, nllb_translate, nllb_model_name, target_language,
         lambda audio_path: whisper_model.transcribe(audio_path, **args), 
-        lambda text_input: nllb_tokenizer(text_input, **args),
-        lambda text_embedding: nllb_model(text_embedding, **args)
     )
 
     if srt_only:
@@ -92,7 +93,13 @@ def get_audio(paths):
     return audio_paths
 
 
-def get_subtitles(audio_paths: list, output_srt: bool, output_dir: str, transcribe: callable,  nllb_model: callable):
+def get_subtitles(audio_paths: list, 
+                  output_srt: bool, 
+                  output_dir: str, 
+                  nllb_translate: bool, 
+                  nllb_model_name: str,
+                  target_language: str,
+                  transcribe: callable):
     subtitles_path = {}
 
     for path, audio_path in audio_paths.items():
@@ -104,16 +111,33 @@ def get_subtitles(audio_paths: list, output_srt: bool, output_dir: str, transcri
         )
 
         warnings.filterwarnings("ignore")
-        result = transcribe(audio_path)
+        transcribe_result = transcribe(audio_path)
         warnings.filterwarnings("default")
 
-        language=result["language"]
-        # nllb_tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M")
-        inputs = nllb_tokenizer(result["segments"]['text'], return_tensors="pt")
-        translated_tokens = model.generate(
-            inputs, forced_bos_token_id=tokenizer.lang_code_to_id["zho_Hans"])
+        if nllb_translate:
+            print(
+                f"Translating subtitles for {filename(path)}... This might take a while."
+            )
+            language=transcribe_result["language"]
+            nllb_tokenizer = AutoTokenizer.from_pretrained(nllb_model_name, src_lang=LANGUAGES[language])
+            nllb_model = AutoModelForSeq2SeqLM.from_pretrained(nllb_model_name)
 
-        result["segments"]['text'] = tokenizer.decode(translated_tokens, skip_special_tokens=True)[0]
+            inputs = nllb_tokenizer([segment['text'] for segment in transcribe_result['segments']], return_tensors="pt", padding = True)
+            translated_tokens = nllb_model.generate(
+                **inputs, forced_bos_token_id=nllb_tokenizer.lang_code_to_id[target_language])
+
+            translate_results = nllb_tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)
+        
+            result = []
+            for i, segment in enumerate(transcribe_result['segments']):
+                result.append({
+                    "start": segment['start'],
+                    "end": segment['end'],
+                    "text": translate_results[i]
+                })
+        else:
+            result = transcribe_result['segments']
+                
         with open(srt_path, "w", encoding="utf-8") as srt:
             write_srt(result, file=srt)
 

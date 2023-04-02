@@ -30,19 +30,25 @@ choco install ffmpeg
 
 The following command will generate a `subtitled/video.mp4` file contained the input video with overlayed subtitles.
 
-    auto_subtitle /path/to/video.mp4 -o subtitled/
+    any-subtitle /path/to/video.mp4 -o subtitled/
 
-The default setting (which selects the `small` model) works well for transcribing English. You can optionally use a bigger model for better results (especially with other languages). The available models are `tiny`, `tiny.en`, `base`, `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`.
+The default whisper model setting (which selects the `small` model) works well for transcribing English. You can optionally use a bigger model for better results (especially with other languages). The available models are `tiny`, `tiny.en`, `base`, `base.en`, `small`, `small.en`, `medium`, `medium.en`, `large`.
 
-    auto_subtitle /path/to/video.mp4 --model medium
+    any-subtitle /path/to/video.mp4 --whisper_model medium
 
-Adding `--task translate` will translate the subtitles into English:
 
-    auto_subtitle /path/to/video.mp4 --task translate
+
+Adding `-t True` to use nllb model to translate the subtitles, you can specific the nllb model with `--nllb_model` and set the target translation language with `-l zho_Hans`, or the language codes can be found in [here](src\const.py).
+
+    any-subtitle /path/to/video.mp4 --whisper_model medium -t True --nllb_model small -l zho_Hans
+
+if you want to use whisper to translate the subtitles into English, you can add `--task translate` and set `-t False` (as default).
+
+    any-subtitle /path/to/video.mp4 --task translate
 
 Run the following to view all available options:
 
-    auto_subtitle --help
+    any-subtitle --help
 
 ## Acknowledge
 AnySubtitle refer to [auto-subtitle](https://github.com/m1guelpf/auto-subtitle).
